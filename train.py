@@ -4,6 +4,7 @@ import time
 import torch
 import argparse
 import logging
+import math
 import numpy as np
 from multiprocessing import cpu_count
 from tensorboardX import SummaryWriter
@@ -71,6 +72,19 @@ def main(args):
     def kl_anneal_function(anneal_function, step):
         if anneal_function == 'identity':
             return 1
+
+        if anneal_function == 'custom':
+            one_epoch = 1314.
+            num_epochs = 10.
+            train_epoch = 1.
+            size_of_batch = 50
+            num_of_batches = 5
+            if step > (one_epoch * train_epoch):
+                base_steps = (step - (one_epoch * train_epoch))
+                epochs_remain = num_epochs - train_epoch
+                cur_epoch = base_steps/one_epoch - (epochs_remain/2)
+                return min(1., float(0.5 / (1 + np.exp(-1 * cur_epoch))))
+            return 0
 
     ReconLoss = torch.nn.NLLLoss(size_average=False, ignore_index=datasets['train'].pad_idx)
     def loss_fn(logp, target, length, mean, logv, anneal_function, step):
@@ -215,6 +229,7 @@ if __name__ == '__main__':
     args.rnn_type = args.rnn_type.lower()
     args.anneal_function = args.anneal_function.lower()
 
+    assert args.anneal_function in ['identity', 'custom']
     assert args.rnn_type in ['rnn', 'lstm', 'gru']
     assert 0 <= args.word_dropout <= 1
 
